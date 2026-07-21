@@ -1,0 +1,35 @@
+[
+  {
+    "id": "sample-movie-1",
+    "title": "Sample Public Domain Feature",
+    "year": 1948,
+    "poster": "https://example.com/posters/sample1.jpg",
+    "duration_minutes": 92,
+    "genre": "Drama",
+    "streamUrl": "https://legal-source.example.com/vod/sample1/index.m3u8",
+    "license": {
+      "status": "verified",
+      "basis": "public_domain",
+      "source": "Confirmed public domain (US copyright expired)",
+      "region": "Global",
+      "notes": "Verified via copyright renewal records; no rights holder found."
+    }
+  },
+  {
+    "id": "sample-movie-2",
+    "title": "Sample Licensed Feature",
+    "year": 2011,
+    "poster": "https://example.com/posters/sample2.jpg",
+    "duration_minutes": 104,
+    "genre": "Comedy",
+    "streamUrl": "https://legal-source.example.com/vod/sample2/index.m3u8",
+    "license": {
+      "status": "verified",
+      "basis": "licensed",
+      "source": "Streaming license agreement with Distributor Y",
+      "region": "US, CA",
+      "contact": "licensing@distributor-y.example.com",
+      "notes": "License expires 2027-01-01. Region-locked to agreement territories."
+    }
+  }
+]

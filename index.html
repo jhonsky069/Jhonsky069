@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Legal FTA Playlist</title>
+<style>
+  :root {
+    --ink: #1b1f23;
+    --paper: #fbfbfa;
+    --line: #dcdcd8;
+    --accent: #2f5d50;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Georgia", serif;
+    line-height: 1.5;
+  }
+  header {
+    padding: 3rem 1.5rem 1.5rem;
+    border-bottom: 1px solid var(--line);
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.9rem;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: #555;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+  .playlist-link {
+    display: inline-block;
+    margin: 1rem 0 2rem;
+    padding: 0.6rem 1rem;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-family: system-ui, sans-serif;
+    font-size: 0.9rem;
+  }
+  .channel {
+    border-top: 1px solid var(--line);
+    padding: 1rem 0;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .channel:last-child { border-bottom: 1px solid var(--line); }
+  .channel img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    background: #eee;
+    border-radius: 4px;
+  }
+  .channel h2 {
+    font-size: 1.1rem;
+    margin: 0 0 0.2rem;
+  }
+  .meta {
+    font-family: system-ui, sans-serif;
+    font-size: 0.8rem;
+    color: #666;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 0.1rem 0.4rem;
+    margin-top: 0.3rem;
+  }
+  #status { font-family: system-ui, sans-serif; font-size: 0.9rem; color: #777; }
+
+  h2.section-title {
+    font-size: 1.3rem;
+    margin: 2.5rem 0 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+  }
+  .movie-card {
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0;
+    text-align: left;
+    font-family: system-ui, sans-serif;
+    color: var(--ink);
+  }
+  .movie-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    background: #eee;
+    border-radius: 4px;
+    display: block;
+  }
+  .movie-card h3 {
+    font-size: 0.9rem;
+    margin: 0.4rem 0 0.1rem;
+    font-family: inherit;
+  }
+  .movie-card .meta { margin: 0; }
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .overlay.open { display: flex; }
+  .player-box {
+    background: #000;
+    max-width: 900px;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .player-box video { width: 100%; display: block; }
+  .player-close {
+    font-family: system-ui, sans-serif;
+    background: #fff;
+    border: none;
+    padding: 0.5rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0.6rem;
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Free-to-Air Playlist</h1>
+  <p class="sub">Channels listed here are sourced under a verified license or public FTA agreement. Each entry links to its source terms, not a rehosted copy of the stream.</p>
+</header>
+<main>
+  <a class="playlist-link" href="/playlist.m3u" download="playlist.m3u">Download playlist.m3u</a>
+  <div id="status">Loading channels…</div>
+  <div id="channels"></div>
+
+  <h2 class="section-title">Movies</h2>
+  <div id="movie-status" class="meta">Loading movies…</div>
+  <div id="movies" class="movie-grid"></div>
+</main>
+
+<div class="overlay" id="player-overlay">
+  <div class="player-box">
+    <button class="player-close" id="player-close">Close</button>
+    <video id="player-video" controls autoplay></video>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+
+<script>
+async function loadChannels() {
+  const statusEl = document.getElementById('status');
+  const listEl = document.getElementById('channels');
+  try {
+    const res = await fetch('/api/channels');
+    if (!res.ok) throw new Error('Request failed');
+    const channels = await res.json();
+    statusEl.remove();
+    if (!channels.length) {
+      listEl.innerHTML = '<p>No licensed channels are configured yet.</p>';
+      return;
+    }
+    listEl.innerHTML = channels.map(ch => `
+      <div class="channel">
+        <img src="${ch.logo}" alt="" onerror="this.style.visibility='hidden'">
+        <div>
+          <h2>${ch.name}</h2>
+          <div class="meta">${ch.group} · ${ch.license.region}</div>
+          <div class="meta">Source: ${ch.license.source}</div>
+          <span class="badge">${ch.license.status}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    statusEl.textContent = 'Could not load channel list.';
+  }
+}
+loadChannels();
+
+async function loadMovies() {
+  const statusEl = document.getElementById('movie-status');
+  const gridEl = document.getElementById('movies');
+  try {
+    const res = await fetch('/api/movies');
+    if (!res.ok) throw new Error('Request failed');
+    const movies = await res.json();
+    statusEl.remove();
+    if (!movies.length) {
+      gridEl.innerHTML = '<p>No licensed movies are configured yet.</p>';
+      return;
+    }
+    gridEl.innerHTML = movies.map(m => `
+      <button class="movie-card" data-id="${m.id}">
+        <img src="${m.poster}" alt="" onerror="this.style.visibility='hidden'">
+        <h3>${m.title}</h3>
+        <p class="meta">${m.year} · ${m.duration_minutes} min</p>
+      </button>
+    `).join('');
+    gridEl.querySelectorAll('.movie-card').forEach(card => {
+      card.addEventListener('click', () => playMovie(card.dataset.id));
+    });
+  } catch (err) {
+    statusEl.textContent = 'Could not load movie catalog.';
+  }
+}
+
+async function playMovie(id) {
+  const res = await fetch(`/api/movies/${id}`);
+  if (!res.ok) { alert('This title is not available for playback.'); return; }
+  const movie = await res.json();
+  const overlay = document.getElementById('player-overlay');
+  const video = document.getElementById('player-video');
+  overlay.classList.add('open');
+
+  if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = movie.streamUrl; // native HLS (Safari)
+  } else if (window.Hls && Hls.isSupported()) {
+    const hls = new Hls();
+    hls.loadSource(movie.streamUrl);
+    hls.attachMedia(video);
+  } else {
+    video.src = movie.streamUrl; // fallback for non-HLS files (mp4 etc.)
+  }
+}
+
+document.getElementById('player-close').addEventListener('click', () => {
+  const overlay = document.getElementById('player-overlay');
+  const video = document.getElementById('player-video');
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+  overlay.classList.remove('open');
+});
+
+loadMovies();
+</script>
+</body>
+</html>
